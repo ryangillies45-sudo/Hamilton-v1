@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from pix import Sprite, hexc, micro_text, micro_width, write_meta
+from pix import Sprite, hexc, micro_text, micro_text2, micro_width, write_meta
 
 # ---------------------------------------------------------------- palettes
 SILVER_CHROME = ["#f6f7f9", "#cfd3d9", "#a3a8b0", "#6c717a", "#c3c7ce", "#50545c"]
@@ -25,7 +25,8 @@ WHITE = ["#ffffff", "#eceef2", "#cfd2da", "#a9adb7", "#868a95"]
 RIVAL = ["#8a9bb5", "#5f7190", "#465673", "#323e55", "#232c3d"]
 
 TEAL, TEAL_LT, TEAL_DK = "#00a19b", "#4fd8cc", "#007570"
-VODA_RED, VODA_DK = "#e3231b", "#a5161a"
+VODA_RED, VODA_DK, VODA_HI = "#e3231b", "#a5161a", "#ff5a4a"
+GRAPHITE = ["#8a8f98", "#6c717a", "#555a63", "#41454d"]
 HP_BLUE = "#0096d6"
 SHELL_Y, SHELL_R = "#ffd500", "#dd1d21"
 FLOOR = "#17191d"
@@ -309,213 +310,292 @@ class Car:
                 micro_text(self.s, x + dx, y + dy, num, outline, clip=self.all)
         micro_text(self.s, x, y, num, color, clip=self.all)
 
-    # ---- McLaren 2007-2012: chrome silver + Vodafone red
+    # ---- shared livery helpers -------------------------------------------
+    def fh(self, x, y):
+        return (x - self.pad) / self.L, (self.gy - y) / self.k
+
+    def zone(self, pred, ramp, base=None, style="metal"):
+        """Repaint pixels of `base` (default: whole car) where pred(f, h) holds,
+        keeping the column shading position so volumes still read."""
+        s = self.s
+        base = self.all if base is None else base
+        for x in range(s.w):
+            ys = np.where(self.all[:, x])[0]
+            if len(ys) == 0:
+                continue
+            y0, y1 = ys.min(), ys.max()
+            span = max(1, y1 - y0)
+            for y in ys:
+                if not base[y, x]:
+                    continue
+                f, h = self.fh(x, y)
+                if not pred(f, h):
+                    continue
+                t = (y - y0) / span
+                if isinstance(ramp, str):
+                    c = ramp
+                elif style == "flat":
+                    c = ramp[1]
+                else:
+                    c = ramp[0] if t < 0.1 else ramp[1] if t < 0.42 else ramp[2] if t < 0.78 else ramp[3]
+                s.px(x, y, c)
+
+    def band(self, f0, f1, h0a, h0b, thick_a, thick_b, color, edge=None, base=None):
+        """A swept band from f0 to f1 whose centre height goes h0a->h0b and
+        thickness thick_a->thick_b (in unscaled px)."""
+        base = self.all if base is None else base
+        for x in range(int(self.X(f0)), int(self.X(f1)) + 1):
+            t = (x - self.X(f0)) / max(1, self.X(f1) - self.X(f0))
+            hc = h0a + (h0b - h0a) * t
+            th = thick_a + (thick_b - thick_a) * t
+            ya, yb = int(round(self.Y(hc + th / 2))), int(round(self.Y(hc - th / 2)))
+            for y in range(ya, yb + 1):
+                if 0 <= y < self.s.h and base[y, x]:
+                    self.s.px(x, y, edge if (edge and y == ya) else color)
+
+    def text_at(self, f, h, text, color, scale=1, base=None):
+        x, y = int(self.X(f)), int(self.Y(h))
+        if scale == 1:
+            micro_text(self.s, x, y, text, color, clip=self.all if base is None else base)
+        else:
+            micro_text2(self.s, x, y, text, color, scale, clip=self.all if base is None else base)
+
+    def disc(self, f, h, r, fill, ring=None):
+        cx, cy = self.X(f), self.Y(h)
+        m = self.s.mask_ellipse(cx, cy, r * self.k, r * self.k)
+        self.s.fill(m & self.all, ring or fill)
+        if ring:
+            self.s.fill(self.s.mask_ellipse(cx, cy, (r - 1.2) * self.k, (r - 1.2) * self.k) & self.all, fill)
+        return int(cx), int(cy)
+
+    def star(self, f, h, light="#ffffff", dark=None):
+        cx, cy = self.disc(f, h, 2.2, dark or "#1b1d22", ring=light)
+        for dx, dy in ((0, -1), (0, 0), (-1, 1), (1, 1)):
+            self.s.px(cx + dx, cy + dy, light)
+
+    def shell(self, f, h):
+        cx, cy = int(self.X(f)), int(self.Y(h))
+        r = max(2, self.q(2.4))
+        m = self.s.mask_ellipse(cx, cy, r, r) & (np.mgrid[0:self.s.h, 0:self.s.w][0] <= cy + 1)
+        self.s.fill(m, SHELL_Y)
+        self.s.rect(cx - r, cy + 1, cx + r, cy + 1, SHELL_R)
+        for k in range(-r + 1, r, 2):
+            self.s.px(cx + k, cy - 1, SHELL_R)
+
+    def hp(self, f, h, r=4.6):
+        cx, cy = self.disc(f, h, r, HP_BLUE)
+        self.s.fill(self.s.mask_ellipse(cx - self.q(1), cy - self.q(1), r * 0.45 * self.k, r * 0.45 * self.k) & self.all, "#3fb6ef")
+        if self.k >= 1.5:
+            micro_text2(self.s, cx - 6, cy - 4, "hp", "#ffffff", 2) if r * self.k > 7 else micro_text(self.s, cx - 3, cy - 2, "hp", "#ffffff")
+        else:
+            micro_text(self.s, cx - 3, cy - 2, "hp", "#ffffff")
+
+    def ineos(self, f, h):
+        x, y = int(self.X(f)), int(self.Y(h))
+        w = micro_width("INEOS") + 3
+        self.s.rect(x - 2, y - 1, x - 2 + w, y + 5, "#d0102a")
+        micro_text(self.s, x, y, "INEOS", "#ffffff")
+
+    # ---- McLaren 2007-2012: chrome silver + Vodafone red (refs: MP4-24/25/26 photos)
     def livery_mclaren(self):
         s, y = self.s, self.year
         ramp_fill(s, self.all, SILVER_CHROME, "chrome")
         self.pod_shading(SILVER_CHROME, "#5a5e66")
+        self.zone(lambda f, h: h < 5.2 and 0.24 < f < 0.92, GRAPHITE)
         # red nose tip
-        for x in range(int(self.X(0.0)), int(self.X(0.075))):
-            t, b = column_top(self.body, x)
-            if t is not None:
-                for yy in range(t, b + 1):
-                    s.px(x, yy, VODA_RED if yy > t else "#ff5a4a")
-        # red stripe along the airbox top and engine cover spine
-        for x in range(int(self.X(0.47)), int(self.X(0.74 if y < 2010 else 0.86))):
+        self.zone(lambda f, h: f < 0.075, [VODA_HI, VODA_RED, VODA_RED, VODA_DK])
+        # red cockpit surround / airbox spine
+        for x in range(int(self.X(0.33)), int(self.X(0.56 if y < 2010 else 0.86))):
             t, b = column_top(self.all, x)
             if t is not None:
-                s.px(x, t, "#ff5a4a")
-                s.px(x, t + 1, VODA_RED)
-                if x < self.X(0.62):
-                    s.px(x, t + 2, VODA_DK)
-                    if self.k > 1.2:
-                        s.px(x, t + 3, VODA_DK)
-        # sidepod swoosh (red band sweeping up the engine cover) + speech mark
-        pod = self.podm
-        cx, cy = int(self.X(0.455)), int(self.Y(10))
-        for x in range(int(self.X(0.43)), int(self.X(0.75))):
-            f = (x - self.X(0.43)) / (self.X(0.75) - self.X(0.43))
-            yc = self.Y(9 + f * 6)
-            thick = self.q(3 if f < 0.6 else 2 if f < 0.85 else 1)
-            for kk in range(thick):
-                if self.all[int(yc) + kk, x]:
-                    s.px(x, int(yc) + kk, VODA_RED if kk else "#ff4d3d")
-        # speech-mark disc
-        disc = s.mask_ellipse(cx, cy, 4.6 * self.k, 4.6 * self.k) & self.all
-        s.fill(disc, VODA_RED)
-        inner = s.mask_ellipse(cx, cy, 3.2 * self.k, 3.2 * self.k) & self.all
-        s.fill(inner, "#ffffff")
-        s.px(cx, cy - 1, VODA_RED); s.px(cx + 1, cy - 1, VODA_RED); s.px(cx + 1, cy, VODA_RED); s.px(cx, cy + 1, VODA_RED)
-        # vodafone wordmark on the engine cover
-        tx = int(self.X(0.49))
-        t, b = column_top(self.body, tx + 8)
-        if t is not None:
-            micro_text(s, tx, t + self.q(4), "vodafone", "#d81e1e", clip=self.body & ~self.podm)
-        # Santander / Mobil 1 hints on the nose side (approx)
+                s.px(x, t, VODA_HI)
+                for kk in range(1, self.q(2) + 1):
+                    s.px(x, t + kk, VODA_RED)
+        if y <= 2010:
+            # "speedmark" swoosh sweeping back and up from the speech-mark logo
+            for x in range(int(self.X(0.43)), int(self.X(0.84)) + 1):
+                t = min(1.0, max(0.0, (x - self.X(0.43)) / (self.X(0.84) - self.X(0.43))))
+                hc = 9.5 + 8.0 * t ** 2.2
+                th = 5.8 - 4.6 * t
+                ya, yb = int(round(self.Y(hc + th / 2))), int(round(self.Y(hc - th / 2)))
+                for yy in range(ya, yb + 1):
+                    if 0 <= yy < s.h and self.all[yy, x]:
+                        s.px(x, yy, VODA_HI if yy == ya else VODA_RED)
+            self.disc(0.45, 9.5, 4.8, "#ffffff", ring=VODA_RED)
+            cx, cy = int(self.X(0.45)), int(self.Y(9.5))
+            for dx, dy in ((0, -1), (1, -1), (1, 0), (0, 1), (-1, 1)):
+                s.px(cx + dx, cy + dy, VODA_RED)
+            if y >= 2008:
+                self.text_at(0.505, 16.5, "aigo", "#3a3f48", base=self.podm | self.body)
+            self.text_at(0.60, 19.5 if y < 2009 else 20, "MOBIL 1", "#1d3f8f", base=self.body)
+        elif y == 2012:
+            # MP4-27: big red speech-mark logo with red wordmark on chrome
+            self.disc(0.45, 10.0, 6.2, "#ffffff", ring=VODA_RED)
+            cx, cy = int(self.X(0.45)), int(self.Y(10.0))
+            for dx, dy in ((0, -2), (1, -2), (2, -1), (2, 0), (1, 1), (0, 2), (-1, 2)):
+                s.px(cx + dx, cy + dy, VODA_RED)
+            self.text_at(0.50, 11.6, "vodafone", VODA_RED, scale=2 if self.k >= 1.5 else 1)
+            self.text_at(0.60, 20.5, "MOBIL 1", "#1d3f8f", base=self.body)
+        else:
+            # 2011: long red band along the sidepod carrying a big white wordmark
+            self.band(0.40, 0.76, 9.0, 10.5, 9.0, 4.0, VODA_RED, edge=VODA_HI)
+            self.disc(0.43, 9.0, 4.3, "#ffffff", ring=VODA_RED)
+            cx, cy = int(self.X(0.43)), int(self.Y(9.0))
+            for dx, dy in ((0, -1), (1, -1), (1, 0), (0, 1)):
+                s.px(cx + dx, cy + dy, VODA_RED)
+            self.text_at(0.47, 12.6, "vodafone", "#ffffff", scale=2 if self.k >= 1.5 else 1)
+            self.text_at(0.60, 20.5, "MOBIL 1", "#1d3f8f", base=self.body)
         self.nose_number("#1b1d22")
-        self.rear_endplate = VODA_RED if y < 2009 else "#c9ccd2"
-        self.endplate_cap = VODA_RED if y >= 2009 else None
-        self.front_endplate = VODA_RED if y < 2009 else "#c9ccd2"
+        self.rear_endplate = VODA_RED if y <= 2010 else SILVER_CHROME[1]
+        self.endplate_cap = VODA_RED if y > 2010 else None
+        if y == 2008:
+            self.text_at(0.29, 16.0, "SANTANDER", "#d81e1e", base=self.body) if self.k >= 1.5 else None
+        self.front_endplate = VODA_RED if y <= 2010 else SILVER_CHROME[1]
+        self.front_cap = VODA_RED
         self.wing_text = ("vodafone", "#ffffff")
+        self.halo_col = CARBON[2]
 
-    # ---- Mercedes 2013-2024
+    # ---- Mercedes 2013-2024 (refs: W04, W06, W07, W08, W09, W11 photos)
     def livery_mercedes(self):
         s, y = self.s, self.year
         black = y in (2020, 2021, 2023)
         if y == 2023:
             ramp_fill(s, self.all, CARBON_RAW, "metal")
-            # raw-carbon weave: subtle checker on the lower body
             for yy in range(s.h):
                 for x in range(s.w):
-                    if self.all[yy, x] and (x + yy) % 2 == 0 and yy > self.Y(14):
+                    if self.all[yy, x] and (x + yy) % 2 == 0 and yy > self.Y(13):
                         s.px(x, yy, "#22262d")
             self.pod_shading(CARBON_RAW, "#0e1013")
-            ramp = CARBON_RAW
         elif black:
             ramp_fill(s, self.all, CARBON, "metal")
             self.pod_shading(CARBON, "#0e1013")
-            ramp = CARBON
         else:
             ramp_fill(s, self.all, SILVER, "metal")
             self.pod_shading(SILVER, "#5d6168")
-            ramp = SILVER
-
-        # W15 / W13: black lower body under a diagonal split
-        if y in (2022, 2024):
-            for yy in range(s.h):
-                for x in range(s.w):
-                    if self.all[yy, x]:
-                        f = (x - self.pad) / self.L
-                        split = self.Y(7 + 7 * max(0, min(1, (f - 0.25) / 0.6))) if y == 2024 else self.Y(5)
-                        if yy >= split:
-                            s.px(x, yy, CARBON[2] if yy < split + 2 else CARBON[3])
-            # teal pinstripe on the split
-            for x in range(int(self.X(0.25)), int(self.X(0.9))):
+        BLK = [CARBON[1], CARBON[2], CARBON[3], CARBON[4]]
+        # black lower bodywork: the split height rises from nose to sidepod
+        if not black:
+            if y == 2013 or y == 2014:
+                split = lambda f: 5.5
+            elif y in (2015, 2016):
+                split = lambda f: 6 + 5 * min(1, max(0, (f - 0.05) / 0.33)) if f < 0.4 else 11 - 3 * min(1, (f - 0.4) / 0.5)
+            elif y in (2017, 2018, 2019):
+                split = lambda f: 5 + 3 * min(1, max(0, (f - 0.1) / 0.3)) if f < 0.42 else 8 - 2 * min(1, (f - 0.42) / 0.45)
+            elif y == 2022:
+                split = lambda f: 5.0
+            else:  # 2024 W15: half silver, half black
+                split = lambda f: 7 + 6 * max(0, min(1, (f - 0.2) / 0.55))
+            self.zone(lambda f, h: h < split(f) and 0.03 < f < 0.95, BLK)
+            for x in range(int(self.X(0.06)), int(self.X(0.9))):
                 f = (x - self.pad) / self.L
-                split = self.Y(7 + 7 * max(0, min(1, (f - 0.25) / 0.6))) if y == 2024 else self.Y(5)
-                if self.all[int(split) - 1, x]:
-                    s.px(x, int(split) - 1, TEAL)
-
-        # Mercedes star pattern (2020-2023: star fade on the engine cover)
+                yy = int(round(self.Y(split(f))))
+                if 0 <= yy < s.h and self.all[yy, x] and self.all[min(s.h - 1, yy + 1), x]:
+                    s.px(x, yy, TEAL if y != 2013 else TEAL_DK)
+        # star pattern on the black/silver cars from 2020
         if y >= 2020:
             dot = "#4b5261" if black else "#b8bdc5"
             for yy in range(s.h):
-                for x in range(int(self.X(0.6)), int(self.X(0.92))):
+                for x in range(int(self.X(0.58)), int(self.X(0.93))):
                     if self.all[yy, x] and (x * 3 + yy * 5) % 11 == 0 and yy < self.Y(10):
                         s.px(x, yy, dot)
-
-        # teal accents: line along the chassis + airbox + fin
-        line_h = 12 if y < 2017 else 11
-        for x in range(int(self.X(0.06)), int(self.X(0.38))):
-            t, b = column_top(self.body, x)
-            if t is not None:
-                yy = max(t + 2, int(self.Y(line_h - 2 * (x - self.X(0.06)) / self.L)))
-                if self.body[yy, x]:
-                    s.px(x, yy, TEAL)
-        for x in range(int(self.X(0.47)), int(self.X(0.80))):
-            t, b = column_top(self.all, x)
-            if t is not None:
-                s.px(x, t + 1, TEAL if y < 2020 or y == 2022 else TEAL_DK)
-                if y >= 2017 and x > self.X(0.55):
-                    s.px(x, t + 2, TEAL_LT if y < 2020 else TEAL)
-        # sidepod teal sweep (pre-2020 silver cars)
-        if y < 2020 or y == 2022:
-            for x in range(int(self.X(0.41)), int(self.X(0.70))):
-                t, b = column_top(self.podm, x)
-                if t is not None and b - t > 3:
-                    s.px(x, b - 1, TEAL)
-                    if x < self.X(0.58):
-                        s.px(x, b - 2, TEAL_DK)
-
-        # PETRONAS wordmark on the engine cover
-        tx = int(self.X(0.50))
-        t, b = column_top(self.body, tx + 10)
+        # teal accents
+        if y == 2013:
+            self.band(0.06, 0.34, 9.5, 12.5, 1.6, 1.6, TEAL)
+            self.band(0.42, 0.70, 6.2, 5.8, 1.6, 1.4, TEAL, base=self.podm)
+            self.text_at(0.44, 12.6, "PETRONAS", TEAL_DK, base=self.all)
+            self.text_at(0.445, 9.0, "PRIMAX", TEAL_DK, scale=2 if self.k >= 1.5 else 1, base=self.all)
+        elif y == 2014:
+            self.band(0.05, 0.40, 8.0, 13.0, 1.6, 1.6, TEAL)
+            self.band(0.42, 0.72, 13.0, 9.0, 1.6, 1.2, TEAL)
+            self.text_at(0.50, 19.5, "PETRONAS", TEAL_DK, base=self.body & ~self.podm)
+        elif y in (2015, 2016):
+            self.band(0.40, 0.60, 12.5, 12.0, 1.4, 1.2, TEAL_LT)
+            self.text_at(0.43, 13.8, "PETRONAS", TEAL_DK, base=self.all)
+            self.text_at(0.44, 8.6, "PRIMAX", "#ffffff", scale=2 if self.k >= 1.5 else 1)
+            self.text_at(0.11, 5.8, "BLACKBERRY" if y == 2015 else "QUALCOMM", "#ffffff") if self.k >= 1.5 else None
+        elif y in (2017, 2018, 2019):
+            self.band(0.30, 0.86, 13.0, 18.0, 1.5, 1.0, TEAL)
+            self.band(0.42, 0.70, 11.5, 9.5, 2.2, 1.5, TEAL_LT, base=self.podm)
+            self.text_at(0.44, 9.2, "PETRONAS", TEAL_DK if self.k < 1.5 else "#ffffff", scale=2 if self.k >= 1.5 else 1, base=self.podm | self.body)
+        elif y in (2020, 2021):
+            self.band(0.06, 0.40, 9.0, 13.0, 1.2, 1.2, TEAL)
+            self.band(0.44, 0.88, 14.5, 17.5, 1.0, 1.0, TEAL)
+            self.text_at(0.44, 9.4, "PETRONAS", "#ffffff", scale=2 if self.k >= 1.5 else 1, base=self.podm | self.body)
+            self.ineos(0.525, 24.0)
+        elif y == 2022:
+            self.band(0.06, 0.40, 9.0, 13.0, 1.2, 1.2, TEAL)
+            self.text_at(0.48, 20.5, "PETRONAS", TEAL_DK, base=self.body & ~self.podm)
+            self.ineos(0.525, 24.5)
+        elif y == 2023:
+            self.band(0.06, 0.40, 9.0, 13.0, 1.2, 1.2, TEAL)
+            self.band(0.46, 0.88, 15.0, 18.0, 1.0, 1.0, "#9aa1ab")
+            self.text_at(0.48, 20.5, "PETRONAS", "#ffffff", base=self.body & ~self.podm)
+            self.ineos(0.525, 24.5)
+        else:  # 2024
+            self.text_at(0.46, 9.5, "PETRONAS", "#ffffff", scale=2 if self.k >= 1.5 else 1, base=self.podm | self.body)
+            self.ineos(0.525, 24.5)
+        # Mercedes star on the nose and engine cover
+        nx = 0.12 if y < 2014 else 0.10
+        t, b = column_top(self.body, int(self.X(nx)))
         if t is not None:
-            col = "#ffffff" if (black or y == 2024) else TEAL_DK
-            micro_text(s, tx, t + self.q(4), "PETRONAS", col, clip=self.body & ~self.podm)
-        # INEOS on the sidepod (2020+)
-        if y >= 2020:
-            px = int(self.X(0.45))
-            t, b = column_top(self.podm, px + 6)
-            if t is not None:
-                micro_text(s, px, t + self.q(3), "INEOS", "#ffffff" if black or y >= 2022 else "#1b1d22", clip=self.podm)
-        # Mercedes star on the nose top (white disc)
-        nx = int(self.X(0.11))
-        t, b = column_top(self.body, nx)
-        if t is not None:
-            s.px(nx, t, "#ffffff"); s.px(nx + 1, t, "#ffffff"); s.px(nx, t + 1, "#d6dbe2")
-        self.nose_number("#ffffff" if black or y >= 2022 else "#1b1d22")
-        self.rear_endplate = ramp[2] if not black else CARBON[1]
-        self.front_endplate = TEAL if y < 2020 else (CARBON[1] if black else SILVER[2])
-        self.wing_text = ("PETRONAS", TEAL if not black else "#ffffff")
+            self.star(nx, (self.gy - t) / self.k - 2.6)
+        self.star(0.66, 20.5 if y >= 2014 else 21.5)
+        # number on the fin / engine cover (red 44 on the silver cars, white on black)
+        if y >= 2014:
+            col = "#c8f03c" if y >= 2022 else "#ffffff" if black else "#e8102a"
+            self.text_at(0.72, 23.0 if self.spec["fin"] else 19.0, "44", col, scale=2 if self.k >= 1.5 else 1, base=self.all)
+        self.nose_number("#ffffff" if black or y >= 2015 else "#1b1d22")
+        self.rear_endplate = CARBON[1] if y >= 2014 else SILVER[1]
+        self.endplate_cap = TEAL if y < 2014 else None
+        self.front_endplate = CARBON[1] if y >= 2015 else TEAL
+        self.front_cap = TEAL
+        self.wing_text = ("EPSON", "#ffffff") if y >= 2015 else ("PETRONAS", "#ffffff")
+        self.halo_col = CARBON[2] if (black or y >= 2022) else SILVER[2]
 
-    # ---- Ferrari 2025-2026
+    # ---- Ferrari 2025-2026 (refs: SF-25 and SF-26 Austrian GP photos)
     def livery_ferrari(self):
         s, y = self.s, self.year
         if y == 2025:
-            ramp_fill(s, self.all, RED_MATTE, "matte")
-            self.pod_shading(RED_MATTE, "#4a070d")
-            # angled white band with thin red/white pinstripes (SF-25)
-            for yy in range(s.h):
-                for x in range(s.w):
-                    if not self.all[yy, x]:
-                        continue
-                    h = (self.gy - yy) / self.k
-                    d = (x - self.X(0.60)) / self.k + (h - 14) * 1.3
-                    if 0 <= d < 5:
-                        s.px(x, yy, "#f3f3f3" if h > 10 else "#d9dae0")
-                    elif 6 <= d < 7:
-                        s.px(x, yy, "#ffffff")
-            for x in range(s.w):  # black lower edge
-                t, b = column_top(self.all, x)
-                if t is not None and b - t > 4:
-                    s.px(x, b, CARBON[3]); s.px(x, b - 1, CARBON[2])
-            self.rear_endplate, self.front_endplate = RED_MATTE[2], RED_MATTE[1]
-            hp_x = int(self.X(0.69))
+            R = RED_MATTE
+            ramp_fill(s, self.all, R, "matte")
+            self.pod_shading(R, "#4a070d")
+            # white panel on the engine-cover top behind the airbox (carries the HP logo)
+            self.zone(lambda f, h: 0.47 < f < 0.72 and h > 17.5 + (f - 0.47) * 8, WHITE)
+            # thin white pinstripe sweeping down the sidepod
+            self.band(0.44, 0.80, 15.5, 9.0, 1.0, 0.8, "#f4f4f4")
+            # black lower front chassis
+            self.zone(lambda f, h: 0.16 < f < 0.40 and h < 10, [CARBON[1], CARBON[2], CARBON[3], CARBON[4]])
+            self.hp(0.565, 21.8, 4.4)
+            self.shell(0.47, 9.0)
+            self.text_at(0.55, 9.6, "RAY-BAN", "#ffffff", base=self.podm | self.body)
+            self.text_at(0.66, 16.0, "IBM", "#ffffff", base=self.body)
+            self.text_at(0.78, 19.0 if self.k < 1.5 else 18.5, "44", "#ffffff", scale=2 if self.k >= 1.5 else 1, base=self.all)
+            self.rear_endplate, self.front_endplate = CARBON[1], R[1]
+            self.front_cap = CARBON[2]
+            self.halo_col = R[2]
         else:
-            ramp_fill(s, self.all, RED_GLOSS, "gloss")
-            self.pod_shading(RED_GLOSS, "#5a080d")
-            # white engine cover (312T homage) – upper body behind the airbox
-            for yy in range(s.h):
-                for x in range(s.w):
-                    if not self.body[yy, x] or self.podm[yy, x]:
-                        continue
-                    f = (x - self.pad) / self.L
-                    h = (self.gy - yy) / self.k
-                    if f > 0.47 and h > 11 + (f - 0.47) * 4 and f < 0.9:
-                        t, b = column_top(self.body, x)
-                        tt = (yy - t) / max(1, (b - t))
-                        s.px(x, yy, WHITE[0] if tt < 0.12 else WHITE[1] if tt < 0.45 else WHITE[2] if tt < 0.8 else WHITE[3])
-            # black on the chassis sides (below the cockpit, ahead of the pods)
-            for yy in range(s.h):
-                for x in range(s.w):
-                    if self.body[yy, x] and not self.podm[yy, x]:
-                        f = (x - self.pad) / self.L
-                        h = (self.gy - yy) / self.k
-                        if 0.2 < f < 0.4 and h < 12:
-                            s.px(x, yy, CARBON[2] if h > 7 else CARBON[3])
-            # gloss specular glints along the top edge
-            for x in range(int(self.X(0.06)), int(self.X(0.46)), 3):
+            R = RED_GLOSS
+            ramp_fill(s, self.all, R, "gloss")
+            self.pod_shading(R, "#5a080d")
+            # SF-26: white engine cover and upper rear bodywork (312T homage)
+            self.zone(lambda f, h: 0.46 < f < 0.9 and h > 8.5 + max(0, 0.6 - f) * 10, WHITE)
+            # red sidepod front and red lower edge
+            self.zone(lambda f, h: 0.38 < f < 0.5 and h < 13, R)
+            self.zone(lambda f, h: 0.46 < f < 0.9 and h < 6.5, R)
+            # black chassis sides ahead of the sidepods
+            self.zone(lambda f, h: 0.17 < f < 0.39 and h < 11.5, [CARBON[1], CARBON[2], CARBON[3], CARBON[4]])
+            for x in range(int(self.X(0.06)), int(self.X(0.46)), 3):  # gloss glints
                 t, b = column_top(self.body, x)
                 if t is not None:
                     s.px(x, t, "#ffd8cf")
-            self.rear_endplate, self.front_endplate = RED_GLOSS[2], CARBON[2]
-            hp_x = int(self.X(0.62))
-        # HP logo (blue disc, white hp) on the engine cover
-        t, b = column_top(self.body, hp_x)
-        if t is not None:
-            cy = t + self.q(6)
-            disc = s.mask_ellipse(hp_x, cy, 4.5 * self.k, 4.5 * self.k)
-            s.fill(disc, HP_BLUE)
-            micro_text(s, hp_x - 3, cy - 2, "hp", "#ffffff")
-        # Shell pecten on the nose (approx)
-        sx = int(self.X(0.15))
-        t, b = column_top(self.body, sx)
-        if t is not None:
-            s.rect(sx, t + 2, sx + 2, t + 3, SHELL_Y)
-            s.px(sx + 1, t + 4, SHELL_Y)
-            s.px(sx - 1, t + 3, SHELL_R); s.px(sx + 3, t + 3, SHELL_R)
-        self.nose_number("#ffffff", outline=None)
+            self.hp(0.60, 18.5, 5.4)
+            self.shell(0.52, 9.5)
+            self.text_at(0.70, 10.6, "CEVA", "#dc1b24", base=self.all)
+            self.text_at(0.69, 20.5, "44", "#dc1b24", scale=2 if self.k >= 1.5 else 1, base=self.all)
+            self.rear_endplate, self.front_endplate = CARBON[1], CARBON[2]
+            self.front_cap = R[1]
+            self.halo_col = CARBON[2]
+        self.nose_number("#ffffff")
         # Ferrari shield on the chassis side ahead of the cockpit
         fx = int(self.X(0.30))
         t, b = column_top(self.body, fx + 1)
@@ -531,7 +611,7 @@ class Car:
             if self.k > 1.2:
                 s.px(fx + sw // 2, sy + sh // 2 - 1, "#111111")
                 s.rect(fx, sy, fx + sw - 1, sy, "#1f9a3d")
-        self.wing_text = ("hp", "#ffffff")
+        self.wing_text = ("V-POWER", "#ffffff") if y == 2026 else ("hp", "#ffffff")
 
     # ---- small details
     def draw_details(self):
@@ -605,7 +685,9 @@ class Car:
         for x in range(s.w):
             t, b = column_top(pm, x)
             if t is not None:
-                s.px(x, t, "#ffffff" if ep in (VODA_RED, TEAL) else WING_HI)
+                s.px(x, t, "#ffffff" if ep in (VODA_RED, TEAL) else getattr(self, "front_cap", WING_HI))
+                if self.k > 1.4:
+                    s.px(x, t + 1, getattr(self, "front_cap", WING_HI))
                 s.px(x, b, CARBON[3])
 
     def draw_rear_wing(self):
@@ -641,9 +723,8 @@ class Car:
             if t is not None:
                 s.px(x, b, CARBON[3])
                 if cap:
-                    for kk in range(self.q(4)):
-                        s.px(x, t + kk, cap if kk else "#ff5a4a")
-                    s.px(x, (t + b) // 2, cap)
+                    for yy in range(t, t + max(2, (b - t) // 2)):
+                        s.px(x, yy, cap if yy > t else "#ff5a4a")
         for x0, h0, x1, h1 in elems:
             s.line(self.X(x0), self.Y(h0), self.X(x1), self.Y(h1), CARBON[3])
             s.line(self.X(x0), self.Y(h0 + 1), self.X(x1), self.Y(h1 + 1), WING_HI)
@@ -685,16 +766,18 @@ class Car:
 
     def draw_halo(self):
         s = self.s
-        col = CARBON[2]
-        hi = "#6b7280"
-        s.line(self.X(0.358), self.Y(19), self.X(0.385), self.Y(27), col)
-        s.line(self.X(0.385), self.Y(28), self.X(0.455), self.Y(28), col)
-        s.line(self.X(0.385), self.Y(29), self.X(0.452), self.Y(29), hi)
-        s.line(self.X(0.455), self.Y(28), self.X(0.468), self.Y(24), col)
+        col = getattr(self, "halo_col", CARBON[2])
+        hi = "#9aa1ab" if col != CARBON[2] else "#6b7280"
+        th = max(1, self.q(1.2))
+        for d in range(th):
+            s.line(self.X(0.358) + d, self.Y(19), self.X(0.385) + d, self.Y(27), col)
+            s.line(self.X(0.385), self.Y(28) + d, self.X(0.455), self.Y(28) + d, col)
+            s.line(self.X(0.455), self.Y(28) + d, self.X(0.468), self.Y(24) + d, col)
+        s.line(self.X(0.385), self.Y(28) - 1, self.X(0.452), self.Y(28) - 1, hi)
 
 
 # ---------------------------------------------------------------- wheels
-def wheel(r, tyre, rim_col, frame):
+def wheel(r, tyre, rim_col, frame, mark=None):
     """r = radius. 4 spin frames rotate the sidewall lettering by 22.5deg steps."""
     d = 2 * r + 1
     s = Sprite(d, d)
@@ -710,11 +793,13 @@ def wheel(r, tyre, rim_col, frame):
     s.fill((dist > wall_in) & (dist <= wall_out), "#26262c")
     # lettering arcs (two, opposite) rotate with the frame
     rot = frame * 22.5
-    mark = {"bs07": "#e6e6e6", "bs09": "#e6e6e6", "pz": "#ffd21a", "pz18": "#ffd21a", "pz26": "#ffd21a"}[tyre]
-    band = (dist > wall_in + (0.6 if big else 1.0)) & (dist <= wall_out - 0.4)
+    mark = mark or {"bs07": "#e6e6e6", "bs09": "#e6e6e6", "pz": "#ffd21a", "pz18": "#ffd21a", "pz26": "#ffd21a"}[tyre]
+    mid = (wall_in + wall_out) / 2
+    band = (dist > mid - (0.7 if big else 0.9)) & (dist <= mid + (0.7 if big else 0.9))
     for base in (rot, rot + 180):
-        seg = ((ang - base) % 360) < 70
-        s.fill(band & seg, mark)
+        seg = ((ang - base) % 360) < 64
+        letters = ((ang - base) % 360) % 9 < 6  # gaps between letters
+        s.fill(band & seg & letters, mark)
     if big:  # 18" Pirelli: coloured ring around the rim
         s.fill((dist > rim_r) & (dist <= rim_r + 0.9), mark)
     # rim / wheel cover
@@ -736,12 +821,20 @@ def wheel(r, tyre, rim_col, frame):
 RIM = {"mclaren": "#7d828b", "mercedes": "#2b2f36", "ferrari": "#2b2f36", "rival": "#6a6f78"}
 
 
-HERO_K = 1.9  # hero close-ups of the two priority cars: more pixels, same pixel size
+MAIN_K = 1.75  # every season car in the vertical film (about 260-310 art px long)
+HERO_K = 2.1  # hero close-ups of the two priority cars: more pixels, same pixel size
+# Tyre sidewall marking per season (compound colours seen in reference photos,
+# Bridgestone softer-compound stripe pre-2011) and rim colours.
+MARKS = {2007: "#e6e6e6", 2008: "#e6e6e6", 2009: "#3fbf5a", 2010: "#3fbf5a", 2011: "#e8202a", 2012: "#ffd21a",
+         2013: "#e6e6e6", 2014: "#ffd21a", 2015: "#f08a1c", 2016: "#e8202a", 2017: "#e8202a", 2018: "#ffd21a",
+         2019: "#e6e6e6", 2020: "#ffd21a", 2021: "#e6e6e6", 2022: "#e8202a", 2023: "#ffd21a", 2024: "#e6e6e6",
+         2025: "#e8202a", 2026: "#ffd21a"}
+RIMS = {"mclaren": "#7d828b", "mercedes": "#2b2f36", "ferrari": "#2b2f36", "rival": "#6a6f78"}
 
 
 def build_all(preview_dir=None):
     meta = {}
-    jobs = [(str(y), y, sp, 1.0) for y, sp in SPECS.items()]
+    jobs = [(str(y), y, sp, MAIN_K) for y, sp in SPECS.items()]
     jobs += [("2007_hero", 2007, SPECS[2007], HERO_K), ("2026_hero", 2026, SPECS[2026], HERO_K)]
     for key, year, spec, k in jobs:
         if k != 1.0:
@@ -758,13 +851,11 @@ def build_all(preview_dir=None):
             open_car = Car(year, spec, wing_open=True, k=k)
             open_car.build().save(f"cars/{key}_open.png")
             entry["open"] = True
-        rim_col = RIM[spec["team"]]
+        rim_col = RIMS[spec["team"]]
         if year == 2025:
-            rim_col = "#b51c27"  # SF-25 red rims (Ferrari launch notes)
-        if year == 2026:
-            rim_col = "#a8121a"
+            rim_col = "#b51c27"  # SF-25 red rims (Ferrari launch notes, reference photo)
         for f in range(4):
-            wheel(car.r, spec["tyre"], rim_col, f).save(f"wheels/{key}_{f}.png")
+            wheel(car.r, spec["tyre"], rim_col, f, MARKS.get(year)).save(f"wheels/{key}_{f}.png")
         meta[key] = entry
     write_meta("cars", meta)
     return meta

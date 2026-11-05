@@ -1,6 +1,7 @@
 // Loads compiled PNG sprites (public/sprites) into pixel arrays.
 import {staticFile} from 'remotion';
 import cars from '../data/generated/cars.json';
+import figure from '../data/generated/figure.json';
 import {Sprite} from './fb';
 
 export type CarMeta = {
@@ -8,6 +9,7 @@ export type CarMeta = {
 	wheels: [number, number][]; exhaust: [number, number]; light: [number, number]; number: string; open?: boolean;
 };
 export const CARS = cars as unknown as Record<string, CarMeta>;
+export const TROPHY_ANCHOR = (figure as unknown as {trophyAnchor: Record<string, [number, number]>}).trophyAnchor;
 
 export type Assets = Record<string, Sprite>;
 
@@ -18,7 +20,11 @@ const names = (): string[] => {
 		if (CARS[k].open) n.push(`cars/${k}_open`);
 		for (let f = 0; f < 4; f++) n.push(`wheels/${k}_${f}`);
 	}
-	for (let y = 2007; y <= 2026; y++) n.push(`hamilton/card_${y}`);
+	for (let y = 2007; y <= 2026; y++) {
+		n.push(`hamilton/card_${y}`);
+		for (const p of ['stand', 'fist', 'arms_up', 'trophy']) n.push(`figure/${y}_${p}`);
+	}
+	for (let i = 0; i < 5; i++) n.push(`trophy/small_${i}`, `trophy/big_${i}`);
 	for (const s of ['', '_blink', '_glint1', '_glint2', '_dawn', '_dawn_blink', '_dawn_glint']) n.push(`hamilton/hero_2026${s}`);
 	return n;
 };

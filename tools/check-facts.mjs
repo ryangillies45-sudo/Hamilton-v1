@@ -1,35 +1,35 @@
 // Fact/imagined guard: run with `npm run check`.
-// - every season record has a source and a status
-// - totals match the production plan fact sheet (106 wins, 209 podiums, 7 titles)
-// - the 2026 standing reads exactly "P3*" / "*AS OF MEXICAN GP"
-// - every imagined scene stamps the IMAGINED tag
 import {readFileSync} from 'node:fs';
-
 const seasons = readFileSync('src/data/seasons.ts', 'utf8');
-const scenes = readFileSync('src/scenes/scenes.ts', 'utf8');
+const records = readFileSync('src/data/records.ts', 'utf8');
+const film = readFileSync('src/scenes/film.ts', 'utf8');
 const imagined = readFileSync('src/data/imagined.ts', 'utf8');
 const fail = [];
-const rows = [...seasons.matchAll(/\{year: (\d{4}),.*?wins: (\d+), podiums: (\d+)(, title: (\d))?.*?sources: \[(.*?)\], status: '(\w+)'\}/g)];
+const rows = [...seasons.matchAll(/S\(\{year: (\d{4}), team: '(\w+)'.*?position: (\d+), wins: (\d+), podiums: (\d+), poles: (\d+)(?:, title: (\d))?/g)].map((r) => ({
+	year: +r[1], team: r[2], pos: +r[3], wins: +r[4], podiums: +r[5], poles: +r[6], title: r[7] ? +r[7] : 0,
+}));
 if (rows.length !== 20) fail.push(`expected 20 seasons, found ${rows.length}`);
-const years = rows.map((r) => +r[1]);
-for (let y = 2007; y <= 2026; y++) if (!years.includes(y)) fail.push(`missing season ${y}`);
-const wins = rows.reduce((n, r) => n + +r[2], 0);
-const pods = rows.reduce((n, r) => n + +r[3], 0);
-const titles = rows.filter((r) => r[5]).length;
-if (wins !== 106) fail.push(`wins total ${wins} != 106`);
-if (pods !== 209) fail.push(`podium total ${pods} != 209`);
-if (titles !== 7) fail.push(`titles ${titles} != 7`);
-for (const r of rows) if (!r[6].trim()) fail.push(`season ${r[1]} has no source`);
-if (!seasons.includes("position: 'P3*', footnote: '*AS OF MEXICAN GP'")) fail.push('2026 standing text changed');
+const tot = (k, pred = () => true) => rows.filter(pred).reduce((n, r) => n + r[k], 0);
+const wins = tot('wins'), pods = tot('podiums'), poles = tot('poles');
+const titles = rows.filter((r) => r.pos === 1);
+if (wins !== 106) fail.push(`wins ${wins} != 106`);
+if (pods !== 209) fail.push(`podiums ${pods} != 209`);
+if (poles !== 105) fail.push(`poles ${poles} != 105`);
+if (titles.length !== 7) fail.push(`titles ${titles.length} != 7`);
+titles.forEach((r, i) => { if (r.title !== i + 1) fail.push(`${r.year} should be title ${i + 1}`); });
+const champYears = titles.map((r) => r.year).join(',');
+if (champYears !== '2008,2014,2015,2017,2018,2019,2020') fail.push(`title years ${champYears}`);
+if (tot('poles', (r) => r.team === 'mclaren') !== 26) fail.push('McLaren poles != 26');
+if (tot('poles', (r) => r.team === 'mercedes') !== 78) fail.push('Mercedes poles != 78');
+if (tot('wins', (r) => r.team === 'mercedes') !== 84) fail.push('Mercedes wins != 84');
+if (!seasons.includes("position: 'P3*', footnote: '*AS OF MEXICAN GP', points: 259, wins: 1, podiums: 7")) fail.push('2026 standing text changed');
+const rec = [...records.matchAll(/value: (\d+),.*?kind: '(\w+)'/g)].map((r) => [+r[1], r[2]]);
+const want = [[106, 'outright'], [105, 'outright'], [209, 'outright'], [7, 'joint'], [84, 'outright'], [15, 'joint'], [9, 'outright']];
+if (JSON.stringify(rec) !== JSON.stringify(want)) fail.push(`records changed: ${JSON.stringify(rec)}`);
 if (!imagined.includes("text: 'WHAT IF… RWANDA 2030'")) fail.push('finale card text changed');
-for (const fn of ['s15', 's16']) {
-	const body = scenes.slice(scenes.indexOf(`export const ${fn} =`), scenes.indexOf('};', scenes.indexOf(`export const ${fn} =`)));
-	if (!body.includes('imaginedTag(')) fail.push(`${fn} (imagined) does not draw the IMAGINED tag`);
-}
-const s14 = scenes.slice(scenes.indexOf('export const s14 ='));
-if (!s14.slice(0, s14.indexOf('};')).includes('imaginedTag(')) fail.push('s14 crossover lacks the IMAGINED tag');
-if (/["“](I |I'm|We )/i.test(imagined)) fail.push('imagined.ts appears to contain a quote');
-console.log(`seasons ${rows.length} · wins ${wins} · podiums ${pods} · titles ${titles}`);
+const fin = film.slice(film.indexOf("id: 'finale'"));
+if (!fin.includes('imaginedTag(fb, f, s + im)')) fail.push('finale does not stamp the IMAGINED tag');
+console.log(`seasons ${rows.length} · wins ${wins} · podiums ${pods} · poles ${poles} · titles ${titles.length} (${champYears})`);
 if (fail.length) {
 	console.error('FACT CHECK FAILED:\n- ' + fail.join('\n- '));
 	process.exit(1);

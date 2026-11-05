@@ -86,7 +86,7 @@ const glyph = (ch: string, size: number): Bitmap => {
 	return g;
 };
 
-export type TextOpts = {size?: 1 | 2 | 4 | 8; shadow?: number; outline?: number; chars?: number; spacing?: number};
+export type TextOpts = {size?: 1 | 2 | 4 | 8 | 16; shadow?: number; outline?: number; chars?: number; spacing?: number};
 
 const adv = (ch: string, size: number, spacing: number) => ((ADV[ch] ?? 5) + spacing) * size;
 

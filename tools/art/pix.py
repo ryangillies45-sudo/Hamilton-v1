@@ -204,3 +204,20 @@ def write_meta(name: str, data):
 def bayer4(x, y):
     m = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
     return m[y % 4][x % 4] / 16.0
+
+
+def micro_text2(s: "Sprite", x: int, y: int, text: str, c, scale: int = 2, clip=None):
+    """Micro font drawn at an integer scale (bigger sponsor wordmarks)."""
+    cx = x
+    for ch in text:
+        g = MICRO_LC.get(ch) or MICRO.get(ch.upper())
+        if g:
+            for gy, row in enumerate(g):
+                for gx, bit in enumerate(row):
+                    if bit == "1":
+                        for dy in range(scale):
+                            for dx in range(scale):
+                                X, Y = cx + gx * scale + dx, y + gy * scale + dy
+                                if clip is None or (0 <= X < s.w and 0 <= Y < s.h and clip[Y, X]):
+                                    s.px(X, Y, c)
+        cx += 4 * scale

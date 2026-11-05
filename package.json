@@ -2,7 +2,7 @@
   "name": "hamilton-pixel-doc",
   "version": "1.0.0",
   "private": true,
-  "description": "30-second pixel-art tribute to Lewis Hamilton's 20 F1 seasons (fan-made, personal use)",
+  "description": "70-second vertical pixel-art documentary of Lewis Hamilton's 20 F1 seasons (fan-made, personal use)",
   "scripts": {
     "art": "python3 tools/art/build_all.py",
     "studio": "remotion studio",

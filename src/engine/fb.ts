@@ -3,6 +3,7 @@
 // blending of edges; fades and wipes use ordered dithering.
 import {H, W} from '../config/video';
 
+
 export type Sprite = {w: number; h: number; px: Uint32Array};
 
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
