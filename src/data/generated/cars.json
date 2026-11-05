@@ -587,5 +587,62 @@
    35
   ],
   "number": ""
+ },
+ "2007_hero": {
+  "key": "2007_hero",
+  "name": "McLaren MP4-22",
+  "team": "mclaren",
+  "w": 291,
+  "h": 87,
+  "gy": 85,
+  "r": 19,
+  "wheels": [
+   [
+    57,
+    66
+   ],
+   [
+    231,
+    66
+   ]
+  ],
+  "exhaust": [
+   266,
+   59
+  ],
+  "light": [
+   280,
+   67
+  ],
+  "number": "2"
+ },
+ "2026_hero": {
+  "key": "2026_hero",
+  "name": "Ferrari SF-26",
+  "team": "ferrari",
+  "w": 325,
+  "h": 87,
+  "gy": 85,
+  "r": 21,
+  "wheels": [
+   [
+    62,
+    64
+   ],
+   [
+    263,
+    64
+   ]
+  ],
+  "exhaust": [
+   297,
+   59
+  ],
+  "light": [
+   314,
+   67
+  ],
+  "number": "44",
+  "open": true
  }
 }

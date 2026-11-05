@@ -44,12 +44,12 @@ export const s01 = ({fb, A, f}: Ctx) => {
 	venue(fb, 'overcast', 0, f);
 	// grid slot markings
 	const w = C('#e8e8e8');
-	for (const gx of [120, 300]) {
-		fb.hline(gx, gx + 14, GROUND + 6, w);
-		fb.vline(gx, GROUND + 2, GROUND + 6, w);
+	for (const gx of [80, 300]) {
+		fb.hline(gx, gx + 18, GROUND + 24, w);
+		fb.vline(gx, GROUND + 19, GROUND + 24, w);
 	}
-	drawCar(fb, A, 'rival', 330, GROUND - 14, f, {spin: 0, bob: (f >> 1) & 1, color: C('#2a2f3a'), shadow: false});
-	drawCar(fb, A, '2007', 112, GROUND, f, {spin: 0, bob: (f >> 1) & 1, exhaust: true});
+	drawCar(fb, A, 'rival', 330, GROUND - 22, f, {spin: 0, bob: (f >> 1) & 1, color: C('#2a2f3a'), shadow: false});
+	drawCar(fb, A, '2007_hero', 92, GROUND + 18, f, {spin: 0, bob: (f >> 1) & 1, exhaust: true});
 	const lit = LIGHTS.filter((l) => f >= l).length;
 	gantry(fb, f, lit);
 	const t = f - 4;
@@ -65,7 +65,16 @@ export const s01 = ({fb, A, f}: Ctx) => {
 		const sub = '20 SEASONS IN FORMULA 1 · 2007-2026';
 		drawText(fb, Math.round((fb.w - measure(sub)) / 2), 82, sub, C('#ffd23f'), {chars: Math.floor((f - at(1, 3)) * 2), shadow: C('#0b0d12')});
 	}
-	flash(fb, pulse(f, LIGHTS[lit - 1] ?? -99, 3) * 0.25, '#ff4040');
+	// red glow around the gantry as each light comes on
+	const g = pulse(f, LIGHTS[lit - 1] ?? -99, 6);
+	if (g > 0) {
+		const c = C('#ff3030');
+		for (let y = 8; y < 64; y++)
+			for (let x = 136; x < 344; x++) {
+				const inside = x >= 150 && x < 330 && y >= 18 && y < 52;
+				if (!inside && bayer(x, y) < g * 0.35 * (1 - Math.abs(y - 35) / 30)) fb.pset(x, y, c);
+			}
+	}
 };
 
 // ------------------------------------------------------------ S02 2007 rookie
@@ -313,9 +322,10 @@ export const s12 = ({fb, A, f}: Ctx) => {
 export const s13 = ({fb, A, f}: Ctx) => {
 	const s = at(13), t = f - s;
 	const open = f >= at(13, 2) && f < at(13, 4);
-	const r = shot(fb, A, f, '2026', {venue: 'barcelona', off: s + t * 13, carX: Math.round(lerp(190, 140, t / 56)), spin: 1, bob: bob(f, s, s + 57), open, lines: 22, exhaust: true});
+	const carX = t < 10 ? Math.round(lerp(470, 96, (t / 10) * (2 - t / 10))) : Math.round(lerp(96, 70, (t - 10) / 46));
+	const r = shot(fb, A, f, '2026_hero', {venue: 'barcelona', off: s + t * 15, carX, spin: 1, bob: bob(f, s, s + 57), open, lines: 26, exhaust: true});
 	// active-aero indicator
-	if (open && (f >> 2) % 2 === 0) drawText(fb, r.x + r.w - 52, r.y - 12, 'STRAIGHT MODE', C('#ffd23f'), {shadow: C('#000')});
+	if (open && (f >> 2) % 2 === 0) drawText(fb, r.x + r.w - 96, r.y - 4, 'ACTIVE AERO · STRAIGHT MODE', C('#ffd23f'), {shadow: C('#000')});
 	confetti(fb, f, s, {seed: 26, count: 200, ox: 240, oy: 90, cols: ['#dc1b24', '#ffd200', '#ffffff', '#ff6a5e'], life: 56});
 	if (f >= s) {
 		const d = f - s;
@@ -385,8 +395,9 @@ const dawnScene = (fb: FB, A: Assets, f: number, carProgress: number, hero: bool
 	hills(fb, t * 1.0, 170, 18, ['#6fae4a', '#3f8a3a', '#2c6a2e', '#245a28'], {seed: 29, terraces: true});
 	// imagined circuit through the hills
 	track(fb, t * 3, 180, 236, {asphalt: ['#4a4450', '#544e5a', '#403a46'], grass: '#2c6a2e'});
-	const cx = Math.round(lerp(fb.w + 10, -60, carProgress));
-	drawCar(fb, A, '2026', cx, 228, f, {spin: 1, bob: (f >> 2) & 1, exhaust: true});
+	const p = Math.min(1, carProgress);
+	const cx = Math.round(lerp(-340, 18, p * (2 - p)));
+	drawCar(fb, A, '2026_hero', cx, 230, f, {spin: p < 1 ? 1 : 0, bob: (f >> 2) & 1, exhaust: true});
 	if (hero) fb.blit(A[heroFrame(f, true)], 362, fb.h - 124 + (Math.floor(f / 15) % 2));
 };
 
@@ -415,7 +426,7 @@ export const s14 = (ctx: Ctx) => {
 // ------------------------------------------------------------ S15 Finale I (imagined)
 export const s15 = ({fb, A, f}: Ctx) => {
 	const s = at(15);
-	dawnScene(fb, A, f, (f - s) / 70, true);
+	dawnScene(fb, A, f, (f - s) / 40, true);
 	imaginedTag(fb, f, at(14, 3));
 	flash(fb, pulse(f, s, 5) * 0.6, '#fff1c4');
 };
@@ -423,7 +434,7 @@ export const s15 = ({fb, A, f}: Ctx) => {
 // ------------------------------------------------------------ S16 Finale II (imagined)
 export const s16 = ({fb, A, f}: Ctx) => {
 	const s = at(16);
-	dawnScene(fb, A, f, (f - at(15)) / 70, true);
+	dawnScene(fb, A, f, 1, true);
 	// darken behind the card
 	for (let y = 40; y < 150; y++) for (let x = 0; x < fb.w; x++) if (bayer(x, y) < 0.55) fb.pset(x, y, C('#140a10'));
 	const [what, place] = FINALE_CARD.text.split('… ');

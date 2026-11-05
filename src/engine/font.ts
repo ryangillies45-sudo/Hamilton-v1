@@ -1,5 +1,5 @@
-// Original 5x7 bitmap font. Larger sizes are derived with Scale2x (EPX), which
-// smooths diagonals while keeping a single art-pixel size.
+// Original 5x7 bitmap font. Larger sizes are derived with a fill-only Scale2x
+// (EPX) pass, which smooths diagonals while keeping a single art-pixel size.
 import {FB} from './fb';
 
 const G: Record<string, string> = {
@@ -31,7 +31,7 @@ const G: Record<string, string> = {
 	'/': '....#....#...#...#...#...#....#....',
 	"'": '..#....#...........................',
 	'&': '.##..#..#.#.#...#...#.#.##..#..##.#',
-	'*': '.....#.#.#.###.#####.###.#.#.#.....',
+	'*': '..#..#.#.#.###.#.#.#..#............',
 	'+': '.......#....#..#####..#....#.......',
 	'#': '.#.#..#.#.#####.#.#.#####.#.#..#.#.',
 	'·': '...............##...##.............',
@@ -59,10 +59,12 @@ const scale2x = (src: Bitmap): Bitmap => {
 	for (let y = 0; y < h; y++)
 		for (let x = 0; x < w; x++) {
 			const p = P(x, y), A = P(x, y - 1), B = P(x + 1, y), Cc = P(x - 1, y), D = P(x, y + 1);
-			const e0 = Cc === A && Cc !== D && A !== B ? A : p;
-			const e1 = A === B && A !== Cc && B !== D ? B : p;
-			const e2 = D === Cc && D !== B && Cc !== A ? Cc : p;
-			const e3 = B === D && B !== A && D !== Cc ? D : p;
+			// EPX that only fills (never erodes): diagonals get smoother while
+			// square corners stay square, so D/O and B/8 remain distinct.
+			const e0 = p || (Cc === A && Cc !== D && A !== B ? A : 0);
+			const e1 = p || (A === B && A !== Cc && B !== D ? B : 0);
+			const e2 = p || (D === Cc && D !== B && Cc !== A ? Cc : 0);
+			const e3 = p || (B === D && B !== A && D !== Cc ? D : 0);
 			const W2 = w * 2;
 			o[y * 2 * W2 + x * 2] = e0;
 			o[y * 2 * W2 + x * 2 + 1] = e1;

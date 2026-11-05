@@ -15,9 +15,9 @@ const names = (): string[] => {
 	const n: string[] = [];
 	for (const k of Object.keys(CARS)) {
 		n.push(`cars/${k}`);
+		if (CARS[k].open) n.push(`cars/${k}_open`);
 		for (let f = 0; f < 4; f++) n.push(`wheels/${k}_${f}`);
 	}
-	n.push('cars/2026_open');
 	for (let y = 2007; y <= 2026; y++) n.push(`hamilton/card_${y}`);
 	for (const s of ['', '_blink', '_glint1', '_glint2', '_dawn', '_dawn_blink', '_dawn_glint']) n.push(`hamilton/hero_2026${s}`);
 	return n;

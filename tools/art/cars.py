@@ -181,13 +181,14 @@ def column_top(mask, x):
 
 # ---------------------------------------------------------------- builder
 class Car:
-    def __init__(self, year, spec, wing_open=False):
+    def __init__(self, year, spec, wing_open=False, k=1.0):
+        self.k = k
         self.year, self.spec = year, spec
         self.L = spec["L"]
-        self.r = wheel_r(spec)
+        self.r = round(wheel_r(spec) * k)
         self.pad = 3
         self.W = self.L + 2 * self.pad
-        self.H = 46
+        self.H = round(46 * k)
         self.gy = self.H - 2  # ground row (tyre bottom)
         self.s = Sprite(self.W, self.H)
         self.wing_open = wing_open
@@ -196,8 +197,11 @@ class Car:
     def X(self, f):
         return self.pad + f * self.L
 
+    def q(self, n):
+        return int(round(n * self.k))
+
     def Y(self, h):
-        return self.gy - h
+        return self.gy - h * self.k
 
     def P(self, pts):
         return [(self.X(f), self.Y(h)) for f, h in pts]
@@ -229,14 +233,15 @@ class Car:
         s = self.s
         x0, x1 = int(self.X(0.26)), int(self.X(0.93))
         for x in range(x0, x1 + 1):
-            s.px(x, self.Y(2), FLOOR)
-            s.px(x, self.Y(3), CARBON_LINE)
+            for yy in range(int(self.Y(3.5)), int(self.Y(1.5)) + 1):
+                s.px(x, yy, FLOOR if yy >= self.Y(2.4) else CARBON_LINE)
             if self.spec["era"] in ("e22", "e26"):
-                s.px(x, self.Y(4), CARBON_LINE)
+                for yy in range(int(self.Y(4.5)), int(self.Y(3.5)) + 1):
+                    s.px(x, yy, CARBON_LINE)
         # diffuser kick-up
-        for i in range(5):
-            s.px(int(self.X(0.93)) + i, self.Y(3 + i), FLOOR)
-            s.px(int(self.X(0.93)) + i, self.Y(2 + i), CARBON_LINE)
+        for i in range(self.q(5)):
+            s.px(int(self.X(0.93)) + i, self.Y(3 + i / self.k), FLOOR)
+            s.px(int(self.X(0.93)) + i, self.Y(2 + i / self.k), CARBON_LINE)
         if self.spec["era"] in ("e22", "e26"):  # floor edge wing
             s.line(self.X(0.30), self.Y(5), self.X(0.36), self.Y(5), WING_HI)
 
@@ -266,7 +271,7 @@ class Car:
             for x in range(int(self.X(0.05)), int(self.X(0.9))):
                 t, b = column_top(self.all, x)
                 if t is not None:
-                    self.s.px(x, t + 3, "#e9edf2")
+                    self.s.px(x, t + self.q(3), "#e9edf2")
 
     def pod_shading(self, ramp, crease=None):
         """Make the sidepod read as a separate volume: light top edge, shadow above."""
@@ -323,27 +328,29 @@ class Car:
                 s.px(x, t + 1, VODA_RED)
                 if x < self.X(0.62):
                     s.px(x, t + 2, VODA_DK)
+                    if self.k > 1.2:
+                        s.px(x, t + 3, VODA_DK)
         # sidepod swoosh (red band sweeping up the engine cover) + speech mark
         pod = self.podm
         cx, cy = int(self.X(0.455)), int(self.Y(10))
         for x in range(int(self.X(0.43)), int(self.X(0.75))):
             f = (x - self.X(0.43)) / (self.X(0.75) - self.X(0.43))
             yc = self.Y(9 + f * 6)
-            thick = 3 if f < 0.6 else 2 if f < 0.85 else 1
-            for k in range(thick):
-                if self.all[int(yc) + k, x]:
-                    s.px(x, int(yc) + k, VODA_RED if k else "#ff4d3d")
+            thick = self.q(3 if f < 0.6 else 2 if f < 0.85 else 1)
+            for kk in range(thick):
+                if self.all[int(yc) + kk, x]:
+                    s.px(x, int(yc) + kk, VODA_RED if kk else "#ff4d3d")
         # speech-mark disc
-        disc = s.mask_ellipse(cx, cy, 4.6, 4.6) & self.all
+        disc = s.mask_ellipse(cx, cy, 4.6 * self.k, 4.6 * self.k) & self.all
         s.fill(disc, VODA_RED)
-        inner = s.mask_ellipse(cx, cy, 3.2, 3.2) & self.all
+        inner = s.mask_ellipse(cx, cy, 3.2 * self.k, 3.2 * self.k) & self.all
         s.fill(inner, "#ffffff")
         s.px(cx, cy - 1, VODA_RED); s.px(cx + 1, cy - 1, VODA_RED); s.px(cx + 1, cy, VODA_RED); s.px(cx, cy + 1, VODA_RED)
         # vodafone wordmark on the engine cover
         tx = int(self.X(0.49))
         t, b = column_top(self.body, tx + 8)
         if t is not None:
-            micro_text(s, tx, t + 4, "vodafone", "#d81e1e", clip=self.body & ~self.podm)
+            micro_text(s, tx, t + self.q(4), "vodafone", "#d81e1e", clip=self.body & ~self.podm)
         # Santander / Mobil 1 hints on the nose side (approx)
         self.nose_number("#1b1d22")
         self.rear_endplate = VODA_RED if y < 2009 else "#c9ccd2"
@@ -425,13 +432,13 @@ class Car:
         t, b = column_top(self.body, tx + 10)
         if t is not None:
             col = "#ffffff" if (black or y == 2024) else TEAL_DK
-            micro_text(s, tx, t + 4, "PETRONAS", col, clip=self.body & ~self.podm)
+            micro_text(s, tx, t + self.q(4), "PETRONAS", col, clip=self.body & ~self.podm)
         # INEOS on the sidepod (2020+)
         if y >= 2020:
             px = int(self.X(0.45))
             t, b = column_top(self.podm, px + 6)
             if t is not None:
-                micro_text(s, px, t + 3, "INEOS", "#ffffff" if black or y >= 2022 else "#1b1d22", clip=self.podm)
+                micro_text(s, px, t + self.q(3), "INEOS", "#ffffff" if black or y >= 2022 else "#1b1d22", clip=self.podm)
         # Mercedes star on the nose top (white disc)
         nx = int(self.X(0.11))
         t, b = column_top(self.body, nx)
@@ -453,8 +460,8 @@ class Car:
                 for x in range(s.w):
                     if not self.all[yy, x]:
                         continue
-                    h = self.gy - yy
-                    d = (x - self.X(0.60)) + (h - 14) * 1.3
+                    h = (self.gy - yy) / self.k
+                    d = (x - self.X(0.60)) / self.k + (h - 14) * 1.3
                     if 0 <= d < 5:
                         s.px(x, yy, "#f3f3f3" if h > 10 else "#d9dae0")
                     elif 6 <= d < 7:
@@ -474,7 +481,7 @@ class Car:
                     if not self.body[yy, x] or self.podm[yy, x]:
                         continue
                     f = (x - self.pad) / self.L
-                    h = self.gy - yy
+                    h = (self.gy - yy) / self.k
                     if f > 0.47 and h > 11 + (f - 0.47) * 4 and f < 0.9:
                         t, b = column_top(self.body, x)
                         tt = (yy - t) / max(1, (b - t))
@@ -484,7 +491,7 @@ class Car:
                 for x in range(s.w):
                     if self.body[yy, x] and not self.podm[yy, x]:
                         f = (x - self.pad) / self.L
-                        h = self.gy - yy
+                        h = (self.gy - yy) / self.k
                         if 0.2 < f < 0.4 and h < 12:
                             s.px(x, yy, CARBON[2] if h > 7 else CARBON[3])
             # gloss specular glints along the top edge
@@ -497,8 +504,8 @@ class Car:
         # HP logo (blue disc, white hp) on the engine cover
         t, b = column_top(self.body, hp_x)
         if t is not None:
-            cy = t + 6
-            disc = s.mask_ellipse(hp_x, cy, 4.5, 4.5)
+            cy = t + self.q(6)
+            disc = s.mask_ellipse(hp_x, cy, 4.5 * self.k, 4.5 * self.k)
             s.fill(disc, HP_BLUE)
             micro_text(s, hp_x - 3, cy - 2, "hp", "#ffffff")
         # Shell pecten on the nose (approx)
@@ -509,7 +516,22 @@ class Car:
             s.px(sx + 1, t + 4, SHELL_Y)
             s.px(sx - 1, t + 3, SHELL_R); s.px(sx + 3, t + 3, SHELL_R)
         self.nose_number("#ffffff", outline=None)
-        self.wing_text = ("HP", "#ffffff")
+        # Ferrari shield on the chassis side ahead of the cockpit
+        fx = int(self.X(0.30))
+        t, b = column_top(self.body, fx + 1)
+        if t is not None:
+            sy = t + self.q(3)
+            sh = self.q(5)
+            sw = max(3, self.q(3))
+            for yy in range(sh):
+                for xx in range(sw):
+                    if yy < sh - 1 or xx == sw // 2:
+                        s.px(fx + xx, sy + yy, "#ffd200")
+            s.px(fx + sw // 2, sy + sh // 2, "#111111")
+            if self.k > 1.2:
+                s.px(fx + sw // 2, sy + sh // 2 - 1, "#111111")
+                s.rect(fx, sy, fx + sw - 1, sy, "#1f9a3d")
+        self.wing_text = ("hp", "#ffffff")
 
     # ---- small details
     def draw_details(self):
@@ -524,9 +546,9 @@ class Car:
         ax = int(self.X(0.475))
         t, b = column_top(self.body, ax + 1)
         if t is not None:
-            for k in range(3):
-                s.px(ax + 1, t + 1 + k, "#0b0c0e")
-                s.px(ax + 2, t + 1 + k, "#0b0c0e")
+            for kk in range(self.q(3)):
+                s.px(ax + 1, t + 1 + kk, "#0b0c0e")
+                s.px(ax + 2, t + 1 + kk, "#0b0c0e")
         # mirror
         mx = int(self.X(0.335))
         s.rect(mx, self.Y(23), mx + 3, self.Y(22), CARBON[2])
@@ -619,8 +641,8 @@ class Car:
             if t is not None:
                 s.px(x, b, CARBON[3])
                 if cap:
-                    for k in range(4):
-                        s.px(x, t + k, cap if k else "#ff5a4a")
+                    for kk in range(self.q(4)):
+                        s.px(x, t + kk, cap if kk else "#ff5a4a")
                     s.px(x, (t + b) // 2, cap)
         for x0, h0, x1, h1 in elems:
             s.line(self.X(x0), self.Y(h0), self.X(x1), self.Y(h1), CARBON[3])
@@ -645,16 +667,19 @@ class Car:
         s = self.s
         base, acc, visor = HELMETS[self.spec["helmet"]]
         cx, cy = self.X(0.41), self.Y(23)
-        m = s.mask_ellipse(cx, cy, 4.2, 3.6)
+        m = s.mask_ellipse(cx, cy, 4.2 * self.k, 3.6 * self.k)
         # only above the cockpit rim
         rim_y = self.Y(self.top[-10][1] if False else 19)
         m[int(rim_y) + 1 :, :] = False
         s.fill(m, base)
         # accent stripe, visor slit, top highlight
-        for x in range(int(cx - 4), int(cx + 5)):
-            s.px(x, int(cy) - 1, acc)
-        s.line(cx - 4, cy, cx - 1, cy, visor)
-        s.px(cx - 4, cy + 1, visor)
+        K = self.k
+        for x in range(int(cx - 4 * K), int(cx + 5 * K)):
+            for yy in range(self.q(1)):
+                s.px(x, int(cy) - 1 - yy, acc)
+        for yy in range(self.q(1.5)):
+            s.line(cx - 4 * K, cy + yy, cx - 1, cy + yy, visor)
+        s.px(cx - 4 * K, cy + self.q(1.5), visor)
         s.px(int(cx) - 1, int(cy) - 3, "#ffffff")
         s.px(int(cx), int(cy) - 3, "#ffffff")
 
@@ -711,11 +736,17 @@ def wheel(r, tyre, rim_col, frame):
 RIM = {"mclaren": "#7d828b", "mercedes": "#2b2f36", "ferrari": "#2b2f36", "rival": "#6a6f78"}
 
 
+HERO_K = 1.9  # hero close-ups of the two priority cars: more pixels, same pixel size
+
+
 def build_all(preview_dir=None):
     meta = {}
-    for year, spec in SPECS.items():
-        key = str(year)
-        car = Car(year, spec)
+    jobs = [(str(y), y, sp, 1.0) for y, sp in SPECS.items()]
+    jobs += [("2007_hero", 2007, SPECS[2007], HERO_K), ("2026_hero", 2026, SPECS[2026], HERO_K)]
+    for key, year, spec, k in jobs:
+        if k != 1.0:
+            spec = dict(spec, L=round(spec["L"] * k))
+        car = Car(year, spec, k=k)
         body = car.build()
         body.save(f"cars/{key}.png")
         entry = dict(
@@ -724,8 +755,8 @@ def build_all(preview_dir=None):
             exhaust=list(car.exhaust), light=list(car.light), number=spec["num"],
         )
         if year == 2026:
-            open_car = Car(year, spec, wing_open=True)
-            open_car.build().save("cars/2026_open.png")
+            open_car = Car(year, spec, wing_open=True, k=k)
+            open_car.build().save(f"cars/{key}_open.png")
             entry["open"] = True
         rim_col = RIM[spec["team"]]
         if year == 2025:
