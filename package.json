@@ -1,0 +1,22 @@
+{
+  "name": "hamilton-pixel-doc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "30-second pixel-art tribute to Lewis Hamilton's 20 F1 seasons (fan-made, personal use)",
+  "scripts": {
+    "art": "python3 tools/art/build_all.py",
+    "studio": "remotion studio",
+    "check": "tsc --noEmit && node tools/check-facts.mjs",
+    "render": "bash tools/render.sh"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.540",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.540"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}

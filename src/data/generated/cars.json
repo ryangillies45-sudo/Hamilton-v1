@@ -1,0 +1,591 @@
+{
+ "2007": {
+  "key": "2007",
+  "name": "McLaren MP4-22",
+  "team": "mclaren",
+  "w": 156,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    32,
+    34
+   ],
+   [
+    123,
+    34
+   ]
+  ],
+  "exhaust": [
+   143,
+   30
+  ],
+  "light": [
+   149,
+   35
+  ],
+  "number": "2"
+ },
+ "2008": {
+  "key": "2008",
+  "name": "McLaren MP4-23",
+  "team": "mclaren",
+  "w": 156,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    32,
+    34
+   ],
+   [
+    123,
+    34
+   ]
+  ],
+  "exhaust": [
+   143,
+   30
+  ],
+  "light": [
+   149,
+   35
+  ],
+  "number": "22"
+ },
+ "2009": {
+  "key": "2009",
+  "name": "McLaren MP4-24",
+  "team": "mclaren",
+  "w": 158,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    32,
+    34
+   ],
+   [
+    125,
+    34
+   ]
+  ],
+  "exhaust": [
+   145,
+   30
+  ],
+  "light": [
+   151,
+   35
+  ],
+  "number": "1"
+ },
+ "2010": {
+  "key": "2010",
+  "name": "McLaren MP4-25",
+  "team": "mclaren",
+  "w": 164,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    129,
+    34
+   ]
+  ],
+  "exhaust": [
+   150,
+   30
+  ],
+  "light": [
+   157,
+   35
+  ],
+  "number": "2"
+ },
+ "2011": {
+  "key": "2011",
+  "name": "McLaren MP4-26",
+  "team": "mclaren",
+  "w": 164,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    129,
+    34
+   ]
+  ],
+  "exhaust": [
+   150,
+   30
+  ],
+  "light": [
+   157,
+   35
+  ],
+  "number": "3"
+ },
+ "2012": {
+  "key": "2012",
+  "name": "McLaren MP4-27",
+  "team": "mclaren",
+  "w": 164,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    129,
+    34
+   ]
+  ],
+  "exhaust": [
+   150,
+   30
+  ],
+  "light": [
+   157,
+   35
+  ],
+  "number": "4"
+ },
+ "2013": {
+  "key": "2013",
+  "name": "Mercedes F1 W04",
+  "team": "mercedes",
+  "w": 166,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    131,
+    34
+   ]
+  ],
+  "exhaust": [
+   152,
+   30
+  ],
+  "light": [
+   159,
+   35
+  ],
+  "number": "10"
+ },
+ "2014": {
+  "key": "2014",
+  "name": "Mercedes F1 W05 Hybrid",
+  "team": "mercedes",
+  "w": 168,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    34,
+    34
+   ],
+   [
+    133,
+    34
+   ]
+  ],
+  "exhaust": [
+   154,
+   30
+  ],
+  "light": [
+   160,
+   35
+  ],
+  "number": "44"
+ },
+ "2015": {
+  "key": "2015",
+  "name": "Mercedes F1 W06 Hybrid",
+  "team": "mercedes",
+  "w": 168,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    34,
+    34
+   ],
+   [
+    133,
+    34
+   ]
+  ],
+  "exhaust": [
+   154,
+   30
+  ],
+  "light": [
+   160,
+   35
+  ],
+  "number": "44"
+ },
+ "2016": {
+  "key": "2016",
+  "name": "Mercedes F1 W07 Hybrid",
+  "team": "mercedes",
+  "w": 170,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    34,
+    34
+   ],
+   [
+    134,
+    34
+   ]
+  ],
+  "exhaust": [
+   156,
+   30
+  ],
+  "light": [
+   162,
+   35
+  ],
+  "number": "44"
+ },
+ "2017": {
+  "key": "2017",
+  "name": "Mercedes-AMG F1 W08 EQ Power+",
+  "team": "mercedes",
+  "w": 178,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    147,
+    34
+   ]
+  ],
+  "exhaust": [
+   163,
+   30
+  ],
+  "light": [
+   170,
+   35
+  ],
+  "number": "44"
+ },
+ "2018": {
+  "key": "2018",
+  "name": "Mercedes-AMG F1 W09 EQ Power+",
+  "team": "mercedes",
+  "w": 178,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    147,
+    34
+   ]
+  ],
+  "exhaust": [
+   163,
+   30
+  ],
+  "light": [
+   170,
+   35
+  ],
+  "number": "44"
+ },
+ "2019": {
+  "key": "2019",
+  "name": "Mercedes-AMG F1 W10 EQ Power+",
+  "team": "mercedes",
+  "w": 180,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    148,
+    34
+   ]
+  ],
+  "exhaust": [
+   165,
+   30
+  ],
+  "light": [
+   172,
+   35
+  ],
+  "number": "44"
+ },
+ "2020": {
+  "key": "2020",
+  "name": "Mercedes-AMG F1 W11 EQ Performance",
+  "team": "mercedes",
+  "w": 182,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    34,
+    34
+   ],
+   [
+    150,
+    34
+   ]
+  ],
+  "exhaust": [
+   167,
+   30
+  ],
+  "light": [
+   174,
+   35
+  ],
+  "number": "44"
+ },
+ "2021": {
+  "key": "2021",
+  "name": "Mercedes-AMG F1 W12 E Performance",
+  "team": "mercedes",
+  "w": 182,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    34,
+    34
+   ],
+   [
+    150,
+    34
+   ]
+  ],
+  "exhaust": [
+   167,
+   30
+  ],
+  "light": [
+   174,
+   35
+  ],
+  "number": "44"
+ },
+ "2022": {
+  "key": "2022",
+  "name": "Mercedes-AMG F1 W13 E Performance",
+  "team": "mercedes",
+  "w": 184,
+  "h": 46,
+  "gy": 44,
+  "r": 11,
+  "wheels": [
+   [
+    35,
+    33
+   ],
+   [
+    151,
+    33
+   ]
+  ],
+  "exhaust": [
+   168,
+   30
+  ],
+  "light": [
+   176,
+   35
+  ],
+  "number": "44"
+ },
+ "2023": {
+  "key": "2023",
+  "name": "Mercedes-AMG F1 W14 E Performance",
+  "team": "mercedes",
+  "w": 184,
+  "h": 46,
+  "gy": 44,
+  "r": 11,
+  "wheels": [
+   [
+    35,
+    33
+   ],
+   [
+    151,
+    33
+   ]
+  ],
+  "exhaust": [
+   168,
+   30
+  ],
+  "light": [
+   176,
+   35
+  ],
+  "number": "44"
+ },
+ "2024": {
+  "key": "2024",
+  "name": "Mercedes-AMG F1 W15 E Performance",
+  "team": "mercedes",
+  "w": 184,
+  "h": 46,
+  "gy": 44,
+  "r": 11,
+  "wheels": [
+   [
+    35,
+    33
+   ],
+   [
+    151,
+    33
+   ]
+  ],
+  "exhaust": [
+   168,
+   30
+  ],
+  "light": [
+   176,
+   35
+  ],
+  "number": "44"
+ },
+ "2025": {
+  "key": "2025",
+  "name": "Ferrari SF-25",
+  "team": "ferrari",
+  "w": 184,
+  "h": 46,
+  "gy": 44,
+  "r": 11,
+  "wheels": [
+   [
+    35,
+    33
+   ],
+   [
+    151,
+    33
+   ]
+  ],
+  "exhaust": [
+   168,
+   30
+  ],
+  "light": [
+   176,
+   35
+  ],
+  "number": "44"
+ },
+ "2026": {
+  "key": "2026",
+  "name": "Ferrari SF-26",
+  "team": "ferrari",
+  "w": 174,
+  "h": 46,
+  "gy": 44,
+  "r": 11,
+  "wheels": [
+   [
+    34,
+    33
+   ],
+   [
+    140,
+    33
+   ]
+  ],
+  "exhaust": [
+   159,
+   30
+  ],
+  "light": [
+   166,
+   35
+  ],
+  "number": "44",
+  "open": true
+ },
+ "rival": {
+  "key": "rival",
+  "name": "generic rival",
+  "team": "rival",
+  "w": 162,
+  "h": 46,
+  "gy": 44,
+  "r": 10,
+  "wheels": [
+   [
+    33,
+    34
+   ],
+   [
+    128,
+    34
+   ]
+  ],
+  "exhaust": [
+   148,
+   30
+  ],
+  "light": [
+   155,
+   35
+  ],
+  "number": ""
+ }
+}

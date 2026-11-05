@@ -1,0 +1,9 @@
+node_modules/
+out/
+audio/
+reference/cache/
+*.wav
+*.mp3
+*.m4a
+.DS_Store
+__pycache__/
