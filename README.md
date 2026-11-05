@@ -18,10 +18,10 @@ git clone https://github.com/ryangillies45-sudo/Hamilton-v1.git C:\dev\Hamilton-
 cd C:\dev\Hamilton-v1
 npm install
 npm run studio        # live preview in the browser (pick "Preview4x")
-npm run render        # renders out\hamilton-pixel-doc_1080p30_silent.mp4 and checks it
+npx remotion render src/index.ts Preview4x out/hamilton-1080p.mp4 --codec=h264 --crf=14
 ```
 
-`npm run render` uses Git Bash and ffmpeg. Remotion downloads its own browser on first run. `npm run check` runs the fact check: totals and the 2026 wording, plus the IMAGINED tag on every imagined scene.
+The `Preview4x` render is pixel-identical to the master and needs nothing beyond Node; Remotion downloads its own browser and ffmpeg on first run. The original pipeline is `npm run render`: 480×270 frames, then ffmpeg 4× nearest-neighbour, then an ffprobe check. It needs Bash (Git Bash) and ffmpeg on your PATH. `npm run check` runs the fact check: totals and the 2026 wording, plus the IMAGINED tag on every imagined scene.
 
 To rebuild the sprites after editing the generators: `python tools/art/build_all.py` (needs Python 3 with Pillow and numpy). The compiled PNGs are committed, so this is optional.
 
